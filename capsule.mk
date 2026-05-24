@@ -119,6 +119,7 @@ $(CAPSULE_SLUG)_CARGO_TOML       := $(CAPSULE_DIR)/Cargo.toml
 $(CAPSULE_SLUG)_CARGO_LOCK       := $(wildcard $(CAPSULE_DIR)/Cargo.lock)
 $(CAPSULE_SLUG)_SOURCES          := $(shell find $(CAPSULE_DIR)/src -type f -name '*.rs' 2>/dev/null | sort)
 $(CAPSULE_SLUG)_ARTIFACTS        := $($(CAPSULE_SLUG)_BIN) $($(CAPSULE_SLUG)_CERT) $($(CAPSULE_SLUG)_MANIFEST)
+$(CAPSULE_SLUG)_VERIFY           := nonos-mk-$(CAPSULE_SLUG)-verify
 
 # Track all capsules that have included this macro so the root
 # Makefile can iterate them through `$(NONOS_VERIFIED_CAPSULES)`.
@@ -132,7 +133,7 @@ NONOS_VERIFIED_CAPSULES := $(NONOS_VERIFIED_CAPSULES) $(CAPSULE_SLUG)
 # become a runtime `$` in the recipe.
 define NONOS_CAPSULE_RULES
 
-.PHONY: nonos-mk-$(1) nonos-mk-$(1)-sign nonos-mk-check-$(1)-keys
+.PHONY: nonos-mk-$(1) nonos-mk-$(1)-sign nonos-mk-$(1)-verify nonos-mk-check-$(1)-keys
 
 $$($(1)_BIN): $$(USERLAND_LIBC) $$($(1)_CAPSULE_MK) \
                $$($(1)_CARGO_TOML) $$($(1)_CARGO_LOCK) $$($(1)_SOURCES)
@@ -199,8 +200,19 @@ $$($(1)_MANIFEST): $$($(1)_BIN) $$($(1)_CERT) $$($(1)_CAPSULE_MK) \
 		--pub-seed ed25519=$$($(1)_KEY_ED_SEED) \
 		--pub-seed mldsa65=$$($(1)_KEY_MLDSA_SEED) \
 		--out $$@
+	@$$(CAPSULE_SIGN_BIN) verify-manifest \
+		--manifest $$($(1)_MANIFEST) \
+		--cert $$($(1)_CERT) \
+		--policy $$(NONOS_TRUST_ANCHOR_POLICY_BIN) >/dev/null
 
 nonos-mk-$(1)-sign: $$($(1)_CERT) $$($(1)_MANIFEST)
+
+nonos-mk-$(1)-verify: $$($(1)_ARTIFACTS) $$(NONOS_TRUST_ANCHOR_POLICY_BIN) $$(CAPSULE_SIGN_BIN)
+	@echo "Verifying $$($(1)_HANDLE) capsule manifest..."
+	@$$(CAPSULE_SIGN_BIN) verify-manifest \
+		--manifest $$($(1)_MANIFEST) \
+		--cert $$($(1)_CERT) \
+		--policy $$(NONOS_TRUST_ANCHOR_POLICY_BIN) >/dev/null
 
 endef
 
