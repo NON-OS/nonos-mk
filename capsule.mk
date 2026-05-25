@@ -83,6 +83,7 @@ _NONOS_CAPSULE_KEY_PUB_PREFIX := $(or $(CAPSULE_KEY_PUB_PREFIX),$(NONOS_BAKED_TR
 _NONOS_CAPSULE_KEY_SEED_PREFIX := $(or $(CAPSULE_KEY_SEED_PREFIX),.keys/$(CAPSULE_BIN_NAME)_publisher)
 _NONOS_CAPSULE_METADATA      := $(or $(CAPSULE_METADATA),NØNOS $(CAPSULE_HANDLE) publisher v1)
 _NONOS_CAPSULE_FEATURE       := $(or $(CAPSULE_FEATURE),nonos-capsule-$(CAPSULE_SLUG))
+_NONOS_CAPSULE_EXTRA_DEPS    := $(strip $(CAPSULE_EXTRA_DEPS))
 
 # Slug-namespaced variable snapshot. These are evaluated at
 # include time so subsequent Capsule.mk files (which reassign
@@ -118,6 +119,7 @@ $(CAPSULE_SLUG)_CAPSULE_MK       := $(CAPSULE_DIR)/Capsule.mk
 $(CAPSULE_SLUG)_CARGO_TOML       := $(CAPSULE_DIR)/Cargo.toml
 $(CAPSULE_SLUG)_CARGO_LOCK       := $(wildcard $(CAPSULE_DIR)/Cargo.lock)
 $(CAPSULE_SLUG)_SOURCES          := $(shell find $(CAPSULE_DIR)/src -type f -name '*.rs' 2>/dev/null | sort)
+$(CAPSULE_SLUG)_EXTRA_DEPS       := $(_NONOS_CAPSULE_EXTRA_DEPS)
 $(CAPSULE_SLUG)_ARTIFACTS        := $($(CAPSULE_SLUG)_BIN) $($(CAPSULE_SLUG)_CERT) $($(CAPSULE_SLUG)_MANIFEST)
 $(CAPSULE_SLUG)_VERIFY           := nonos-mk-$(CAPSULE_SLUG)-verify
 
@@ -136,7 +138,8 @@ define NONOS_CAPSULE_RULES
 .PHONY: nonos-mk-$(1) nonos-mk-$(1)-sign nonos-mk-$(1)-verify nonos-mk-check-$(1)-keys
 
 $$($(1)_BIN): $$(USERLAND_LIBC) $$($(1)_CAPSULE_MK) \
-               $$($(1)_CARGO_TOML) $$($(1)_CARGO_LOCK) $$($(1)_SOURCES)
+               $$($(1)_CARGO_TOML) $$($(1)_CARGO_LOCK) $$($(1)_SOURCES) \
+               $$($(1)_EXTRA_DEPS)
 	@echo "Building $$($(1)_BIN_NAME) capsule..."
 	@cd $$($(1)_DIR) && \
 		RUSTUP_TOOLCHAIN=$$(TOOLCHAIN) \
