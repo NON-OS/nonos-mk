@@ -123,6 +123,17 @@ $(CAPSULE_SLUG)_EXTRA_DEPS       := $(_NONOS_CAPSULE_EXTRA_DEPS)
 $(CAPSULE_SLUG)_ARTIFACTS        := $($(CAPSULE_SLUG)_BIN) $($(CAPSULE_SLUG)_CERT) $($(CAPSULE_SLUG)_MANIFEST)
 $(CAPSULE_SLUG)_VERIFY           := nonos-mk-$(CAPSULE_SLUG)-verify
 
+# Shared userland library crates (those exposing a src/lib.rs) are
+# compiled inline into every capsule by cargo, so a change in any of
+# them must rebuild the dependent capsule. The per-capsule src glob
+# above cannot express that, so track the union of their sources once
+# and add it to every capsule ELF prerequisite below. Over-declaring a
+# crate a capsule never links only forces a harmless rebuild; missing
+# one ships a stale binary, which is exactly the trap this prevents.
+ifndef NONOS_CAPSULE_SHARED_SRCS
+NONOS_CAPSULE_SHARED_SRCS := $(shell find $(patsubst %/lib.rs,%,$(wildcard userland/*/src/lib.rs)) -type f -name '*.rs' 2>/dev/null | sort)
+endif
+
 # Track all capsules that have included this macro so the root
 # Makefile can iterate them through `$(NONOS_VERIFIED_CAPSULES)`.
 # `:=` plus explicit reuse forces eager append — `+=` against a
@@ -139,7 +150,7 @@ define NONOS_CAPSULE_RULES
 
 $$($(1)_BIN): $$(USERLAND_LIBC) $$($(1)_CAPSULE_MK) \
                $$($(1)_CARGO_TOML) $$($(1)_CARGO_LOCK) $$($(1)_SOURCES) \
-               $$($(1)_EXTRA_DEPS)
+               $$(NONOS_CAPSULE_SHARED_SRCS) $$($(1)_EXTRA_DEPS)
 	@echo "Building $$($(1)_BIN_NAME) capsule..."
 	@cd $$($(1)_DIR) && \
 		RUSTUP_TOOLCHAIN=$$(TOOLCHAIN) \
