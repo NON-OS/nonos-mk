@@ -34,7 +34,9 @@ pub fn run(flags: &Flags) -> Result<(), CliError> {
     let out_path = flags.require("out").map_err(CliError::Json)?;
     let path = Path::new(out_path);
     if path.exists() {
-        return Err(CliError::KeyError(format!("refusing to overwrite {out_path}")));
+        return Err(CliError::KeyError(format!(
+            "refusing to overwrite {out_path}"
+        )));
     }
 
     let mut seed = [0u8; 32];

@@ -27,12 +27,21 @@ pub(super) fn to_price(p: &PriceJson) -> Result<PriceModel, CliError> {
         "subscription" => PriceKind::Subscription,
         "usage_metered" => PriceKind::UsageMetered,
         other => {
-            return Err(CliError::UnknownEnum { field: "price.kind", value: other.to_string() })
+            return Err(CliError::UnknownEnum {
+                field: "price.kind",
+                value: other.to_string(),
+            })
         }
     };
-    let amount_atomic = p
-        .amount_atomic
-        .parse::<u128>()
-        .map_err(|_| CliError::Json(format!("price.amount_atomic: not a u128: {}", p.amount_atomic)))?;
-    Ok(PriceModel { kind, amount_atomic, period_seconds: p.period_seconds })
+    let amount_atomic = p.amount_atomic.parse::<u128>().map_err(|_| {
+        CliError::Json(format!(
+            "price.amount_atomic: not a u128: {}",
+            p.amount_atomic
+        ))
+    })?;
+    Ok(PriceModel {
+        kind,
+        amount_atomic,
+        period_seconds: p.period_seconds,
+    })
 }

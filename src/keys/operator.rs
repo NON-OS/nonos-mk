@@ -31,8 +31,8 @@ impl OperatorKey {
     }
 
     pub fn from_env(var: &str) -> Result<Self, CliError> {
-        let value = std::env::var(var)
-            .map_err(|_| CliError::KeyError(format!("env var {var} not set")))?;
+        let value =
+            std::env::var(var).map_err(|_| CliError::KeyError(format!("env var {var} not set")))?;
         let bytes = hex::decode(value.trim())
             .map_err(|e| CliError::KeyError(format!("env var {var}: hex: {e}")))?;
         Self::from_seed_bytes(&bytes, var)
@@ -47,7 +47,9 @@ impl OperatorKey {
         }
         let mut seed = [0u8; SECRET_KEY_LENGTH];
         seed.copy_from_slice(bytes);
-        Ok(OperatorKey { signing: SigningKey::from_bytes(&seed) })
+        Ok(OperatorKey {
+            signing: SigningKey::from_bytes(&seed),
+        })
     }
 
     pub fn pubkey_bytes(&self) -> [u8; 32] {

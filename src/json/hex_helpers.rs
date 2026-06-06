@@ -19,7 +19,11 @@ use crate::error::CliError;
 pub(crate) fn hex32(s: &str, field: &'static str) -> Result<[u8; 32], CliError> {
     let bytes = hex::decode(s).map_err(|e| CliError::Json(format!("{field}: {e}")))?;
     if bytes.len() != 32 {
-        return Err(CliError::BadHexLen { field, expected: 32, got: bytes.len() });
+        return Err(CliError::BadHexLen {
+            field,
+            expected: 32,
+            got: bytes.len(),
+        });
     }
     let mut out = [0u8; 32];
     out.copy_from_slice(&bytes);

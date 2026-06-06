@@ -50,7 +50,11 @@ fn preview_entry() -> MarketplaceEntry {
         publisher_name: alloc::string::String::from("0xNOX"),
         publisher_pubkey: [0u8; 32],
         description: alloc::string::String::from("Preview card; not installable yet."),
-        price: PriceModel { kind: PriceKind::Free, amount_atomic: 0, period_seconds: 0 },
+        price: PriceModel {
+            kind: PriceKind::Free,
+            amount_atomic: 0,
+            period_seconds: 0,
+        },
         token: TokenInfo {
             symbol: alloc::string::String::from("NOX"),
             decimals: 18,

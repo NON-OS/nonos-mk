@@ -29,7 +29,10 @@ pub(super) fn enforce_monotonic(current: u64, flags: &Flags) -> Result<(), CliEr
         .parse::<u64>()
         .map_err(|_| CliError::Json(format!("--previous-serial: not a u64: {prev_str}")))?;
     if current <= prev {
-        return Err(CliError::SerialRollback { previous: prev, current });
+        return Err(CliError::SerialRollback {
+            previous: prev,
+            current,
+        });
     }
     Ok(())
 }

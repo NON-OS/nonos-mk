@@ -51,15 +51,18 @@ pub fn run(flags: &Flags) -> Result<(), CliError> {
 
     if let Some(json_out) = flags.optional("json-out") {
         let normalized = from_index(&index);
-        let pretty = serde_json::to_string_pretty(&normalized)
-            .map_err(|e| CliError::Json(e.to_string()))?;
+        let pretty =
+            serde_json::to_string_pretty(&normalized).map_err(|e| CliError::Json(e.to_string()))?;
         std::fs::write(json_out, pretty)?;
     }
 
     let blob = sign_index(index, &key);
     std::fs::write(out_path, &blob)?;
 
-    eprintln!("wrote signed blob: {out_path} ({} bytes, serial {serial})", blob.len());
+    eprintln!(
+        "wrote signed blob: {out_path} ({} bytes, serial {serial})",
+        blob.len()
+    );
     println!("operator_pubkey {}", hex::encode(pubkey));
     Ok(())
 }

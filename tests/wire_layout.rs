@@ -34,7 +34,11 @@ fn body_starts_with_schema_version_one_le() {
     let key = signing_key();
     let (blob, _sig) = encode_and_sign(index, |bytes| key.sign(bytes).to_bytes());
     assert!(blob.len() >= 4, "blob too short");
-    assert_eq!(&blob[..4], &[0x01, 0x00, 0x00, 0x00], "first u32 must be schema_version=1 LE");
+    assert_eq!(
+        &blob[..4],
+        &[0x01, 0x00, 0x00, 0x00],
+        "first u32 must be schema_version=1 LE"
+    );
 }
 
 #[test]
@@ -73,7 +77,10 @@ fn signed_empty_index_decodes_and_verifies() {
     let pubkey = VerifyingKey::from(&key);
     let sig: [u8; 64] = decoded.index.index_signature.as_slice().try_into().unwrap();
     pubkey
-        .verify(decoded.signed_bytes, &ed25519_dalek::Signature::from_bytes(&sig))
+        .verify(
+            decoded.signed_bytes,
+            &ed25519_dalek::Signature::from_bytes(&sig),
+        )
         .expect("signature must verify");
 }
 
@@ -89,8 +96,10 @@ fn mutated_signed_byte_breaks_verification() {
     let decoded = decode_index(&blob).expect("still decodes structurally");
     let pubkey = VerifyingKey::from(&key);
     let sig: [u8; 64] = decoded.index.index_signature.as_slice().try_into().unwrap();
-    let result =
-        pubkey.verify(decoded.signed_bytes, &ed25519_dalek::Signature::from_bytes(&sig));
+    let result = pubkey.verify(
+        decoded.signed_bytes,
+        &ed25519_dalek::Signature::from_bytes(&sig),
+    );
     assert!(result.is_err(), "mutated body must not verify");
 }
 
@@ -113,13 +122,17 @@ fn validation_status_discriminants_pin_to_canonical_values() {
 #[test]
 fn preview_entry_decodes_with_pending_status_and_no_install_inputs() {
     let key = signing_key();
-    let (blob, _sig) =
-        encode_and_sign(preview_entry_index(), |bytes| key.sign(bytes).to_bytes());
+    let (blob, _sig) = encode_and_sign(preview_entry_index(), |bytes| key.sign(bytes).to_bytes());
     let decoded = decode_index(&blob).expect("decode");
     let entry = &decoded.index.entries[0];
     let release = &entry.releases[0];
     assert_eq!(release.validation.status, ValidationStatus::Pending);
-    assert!(release.package_url.is_empty(), "preview must not advertise a package_url");
-    assert!(release.publisher_signature.is_empty(), "preview must not carry a signature");
+    assert!(
+        release.package_url.is_empty(),
+        "preview must not advertise a package_url"
+    );
+    assert!(
+        release.publisher_signature.is_empty(),
+        "preview must not carry a signature"
+    );
 }
-

@@ -28,7 +28,11 @@ pub enum CliError {
     /// JSON input failed to parse or did not match the schema.
     Json(String),
     /// Hex-decoded field had the wrong length.
-    BadHexLen { field: &'static str, expected: usize, got: usize },
+    BadHexLen {
+        field: &'static str,
+        expected: usize,
+        got: usize,
+    },
     /// Unknown enum string in JSON input.
     UnknownEnum { field: &'static str, value: String },
     /// Operator key file or env var missing or malformed.
@@ -51,7 +55,11 @@ impl fmt::Display for CliError {
         match self {
             CliError::Io(e) => write!(f, "io: {e}"),
             CliError::Json(s) => write!(f, "json: {s}"),
-            CliError::BadHexLen { field, expected, got } => {
+            CliError::BadHexLen {
+                field,
+                expected,
+                got,
+            } => {
                 write!(f, "{field}: expected {expected} hex bytes, got {got}")
             }
             CliError::UnknownEnum { field, value } => {

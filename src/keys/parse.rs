@@ -17,8 +17,8 @@
 use crate::error::CliError;
 
 pub fn parse_pubkey(hex_str: &str) -> Result<[u8; 32], CliError> {
-    let bytes = hex::decode(hex_str.trim())
-        .map_err(|e| CliError::KeyError(format!("pubkey hex: {e}")))?;
+    let bytes =
+        hex::decode(hex_str.trim()).map_err(|e| CliError::KeyError(format!("pubkey hex: {e}")))?;
     if bytes.len() != 32 {
         return Err(CliError::KeyError(format!(
             "pubkey: expected 32 bytes, got {}",

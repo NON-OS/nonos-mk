@@ -25,8 +25,7 @@ pub(super) fn to_token(t: &TokenJson) -> Result<TokenInfo, CliError> {
         Vec::new()
     } else {
         let stripped = t.contract_address.trim_start_matches("0x");
-        hex::decode(stripped)
-            .map_err(|e| CliError::Json(format!("token.contract_address: {e}")))?
+        hex::decode(stripped).map_err(|e| CliError::Json(format!("token.contract_address: {e}")))?
     };
     Ok(TokenInfo {
         symbol: t.symbol.clone(),
