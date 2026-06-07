@@ -38,6 +38,7 @@ pub struct EntryJson {
     pub name: String,
     pub publisher_name: String,
     pub publisher_pubkey: String,
+    pub publisher_eth_address: String,
     pub description: String,
     pub price: PriceJson,
     pub token: TokenJson,

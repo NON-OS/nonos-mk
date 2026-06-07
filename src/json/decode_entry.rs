@@ -27,6 +27,7 @@ pub(super) fn entry_to_json(e: &MarketplaceEntry) -> EntryJson {
         name: e.name.clone(),
         publisher_name: e.publisher_name.clone(),
         publisher_pubkey: hex::encode(e.publisher_pubkey),
+        publisher_eth_address: format!("0x{}", hex::encode(e.publisher_eth_address)),
         description: e.description.clone(),
         price: PriceJson {
             kind: price_kind_str(e.price.kind).to_string(),

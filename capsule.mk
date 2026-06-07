@@ -94,6 +94,10 @@ $(CAPSULE_SLUG)_TARGET           := $(_NONOS_CAPSULE_TARGET)
 $(CAPSULE_SLUG)_BIN              := $(CAPSULE_DIR)/target/$(_NONOS_CAPSULE_TARGET)/release/$(CAPSULE_BIN_NAME)
 $(CAPSULE_SLUG)_CERT             := $(NONOS_BAKED_TRUST_DIR)/capsules/$(CAPSULE_BIN_NAME).nonos_id_cert.bin
 $(CAPSULE_SLUG)_MANIFEST         := $(NONOS_BAKED_TRUST_DIR)/capsules/$(CAPSULE_BIN_NAME).manifest.bin
+$(CAPSULE_SLUG)_ATTESTATION      := $(NONOS_BAKED_TRUST_DIR)/capsules/$(CAPSULE_BIN_NAME).zk_trailer.bin
+$(CAPSULE_SLUG)_ATTEST_PROOF     := $(TARGET_DIR)/capsule-attest/$(CAPSULE_BIN_NAME).proof.bin
+$(CAPSULE_SLUG)_ATTEST_PUBINS    := $(TARGET_DIR)/capsule-attest/$(CAPSULE_BIN_NAME).pubins.bin
+$(CAPSULE_SLUG)_ATTEST_CAPSULE   := $(TARGET_DIR)/capsule-attest/$(CAPSULE_BIN_NAME).capsule.zk
 $(CAPSULE_SLUG)_STALE            := $(NONOS_BAKED_TRUST_DIR)/capsules/$(CAPSULE_BIN_NAME).STALE
 $(CAPSULE_SLUG)_KEY_ED_SEED      := $(_NONOS_CAPSULE_KEY_SEED_PREFIX)_ed25519.seed
 $(CAPSULE_SLUG)_KEY_ED_PUB       := $(_NONOS_CAPSULE_KEY_PUB_PREFIX)_ed25519.pub
@@ -120,7 +124,7 @@ $(CAPSULE_SLUG)_CARGO_TOML       := $(CAPSULE_DIR)/Cargo.toml
 $(CAPSULE_SLUG)_CARGO_LOCK       := $(wildcard $(CAPSULE_DIR)/Cargo.lock)
 $(CAPSULE_SLUG)_SOURCES          := $(shell find $(CAPSULE_DIR)/src -type f -name '*.rs' 2>/dev/null | sort)
 $(CAPSULE_SLUG)_EXTRA_DEPS       := $(_NONOS_CAPSULE_EXTRA_DEPS)
-$(CAPSULE_SLUG)_ARTIFACTS        := $($(CAPSULE_SLUG)_BIN) $($(CAPSULE_SLUG)_CERT) $($(CAPSULE_SLUG)_MANIFEST)
+$(CAPSULE_SLUG)_ARTIFACTS        := $($(CAPSULE_SLUG)_BIN) $($(CAPSULE_SLUG)_CERT) $($(CAPSULE_SLUG)_MANIFEST) $($(CAPSULE_SLUG)_ATTESTATION)
 $(CAPSULE_SLUG)_VERIFY           := nonos-mk-$(CAPSULE_SLUG)-verify
 
 # Shared userland library crates (those exposing a src/lib.rs) are
@@ -219,7 +223,23 @@ $$($(1)_MANIFEST): $$($(1)_BIN) $$($(1)_CERT) $$($(1)_CAPSULE_MK) \
 		--cert $$($(1)_CERT) \
 		--policy $$(NONOS_TRUST_ANCHOR_POLICY_BIN) >/dev/null
 
-nonos-mk-$(1)-sign: $$($(1)_CERT) $$($(1)_MANIFEST)
+$$($(1)_ATTESTATION): $$($(1)_BIN) $$($(1)_MANIFEST) $$(ZK_PROOF_TOOL) \
+                      $$(ZK_VERIFY_TOOL) $$(ZK_PROVING_KEY) $$(ZK_VERIFYING_KEY)
+	@echo "Proving $$($(1)_HANDLE) capsule attestation..."
+	@mkdir -p $$(NONOS_BAKED_TRUST_DIR)/capsules $$(TARGET_DIR)/capsule-attest
+	@$$(ZK_PROOF_TOOL) \
+		--proving-key $$(ZK_PROVING_KEY) \
+		--capsule $$($(1)_BIN) \
+		--capability-mask $$($(1)_REQUIRED_CAPS) \
+		--output $$($(1)_ATTEST_PROOF) \
+		--public-inputs-out $$($(1)_ATTEST_PUBINS) \
+		--trailer-out $$@ \
+		--capsule-with-trailer-out $$($(1)_ATTEST_CAPSULE) >/dev/null
+	@$$(ZK_VERIFY_TOOL) \
+		--verifying-key $$(ZK_VERIFYING_KEY) \
+		--capsule $$($(1)_ATTEST_CAPSULE) >/dev/null
+
+nonos-mk-$(1)-sign: $$($(1)_CERT) $$($(1)_MANIFEST) $$($(1)_ATTESTATION)
 
 nonos-mk-$(1)-verify: $$($(1)_ARTIFACTS) $$(NONOS_TRUST_ANCHOR_POLICY_BIN) $$(CAPSULE_SIGN_BIN)
 	@echo "Verifying $$($(1)_HANDLE) capsule manifest..."

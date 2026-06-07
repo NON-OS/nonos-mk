@@ -49,6 +49,7 @@ fn preview_entry() -> MarketplaceEntry {
         name: alloc::string::String::from("Preview Fixture"),
         publisher_name: alloc::string::String::from("0xNOX"),
         publisher_pubkey: [0u8; 32],
+        publisher_eth_address: [0u8; 20],
         description: alloc::string::String::from("Preview card; not installable yet."),
         price: PriceModel {
             kind: PriceKind::Free,
