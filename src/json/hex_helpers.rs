@@ -31,10 +31,17 @@ pub(crate) fn hex32(s: &str, field: &'static str) -> Result<[u8; 32], CliError> 
 }
 
 pub(crate) fn hex20(s: &str, field: &'static str) -> Result<[u8; 20], CliError> {
-    let trimmed = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")).unwrap_or(s);
+    let trimmed = s
+        .strip_prefix("0x")
+        .or_else(|| s.strip_prefix("0X"))
+        .unwrap_or(s);
     let bytes = hex::decode(trimmed).map_err(|e| CliError::Json(format!("{field}: {e}")))?;
     if bytes.len() != 20 {
-        return Err(CliError::BadHexLen { field, expected: 20, got: bytes.len() });
+        return Err(CliError::BadHexLen {
+            field,
+            expected: 20,
+            got: bytes.len(),
+        });
     }
     let mut out = [0u8; 20];
     out.copy_from_slice(&bytes);
