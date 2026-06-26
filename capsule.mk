@@ -83,7 +83,9 @@ _NONOS_CAPSULE_KEY_PUB_PREFIX := $(or $(CAPSULE_KEY_PUB_PREFIX),$(NONOS_BAKED_TR
 _NONOS_CAPSULE_KEY_SEED_PREFIX := $(or $(CAPSULE_KEY_SEED_PREFIX),.keys/$(CAPSULE_BIN_NAME)_publisher)
 _NONOS_CAPSULE_METADATA      := $(or $(CAPSULE_METADATA),NØNOS $(CAPSULE_HANDLE) publisher v1)
 _NONOS_CAPSULE_FEATURE       := $(or $(CAPSULE_FEATURE),nonos-capsule-$(CAPSULE_SLUG))
+_NONOS_CAPSULE_CARGO_FEATURES := $(strip $(CAPSULE_CARGO_FEATURES))
 _NONOS_CAPSULE_EXTRA_DEPS    := $(strip $(CAPSULE_EXTRA_DEPS))
+_NONOS_CAPSULE_PREBUILT_BIN  := $(strip $(CAPSULE_PREBUILT_BIN))
 
 # Slug-namespaced variable snapshot. These are evaluated at
 # include time so subsequent Capsule.mk files (which reassign
@@ -96,8 +98,7 @@ $(CAPSULE_SLUG)_CERT             := $(NONOS_BAKED_TRUST_DIR)/capsules/$(CAPSULE_
 $(CAPSULE_SLUG)_MANIFEST         := $(NONOS_BAKED_TRUST_DIR)/capsules/$(CAPSULE_BIN_NAME).manifest.bin
 $(CAPSULE_SLUG)_ATTESTATION      := $(NONOS_BAKED_TRUST_DIR)/capsules/$(CAPSULE_BIN_NAME).zk_trailer.bin
 $(CAPSULE_SLUG)_ATTEST_PROOF     := $(TARGET_DIR)/capsule-attest/$(CAPSULE_BIN_NAME).proof.bin
-$(CAPSULE_SLUG)_ATTEST_PUBINS    := $(TARGET_DIR)/capsule-attest/$(CAPSULE_BIN_NAME).pubins.bin
-$(CAPSULE_SLUG)_ATTEST_CAPSULE   := $(TARGET_DIR)/capsule-attest/$(CAPSULE_BIN_NAME).capsule.zk
+$(CAPSULE_SLUG)_ATTEST_CTX       := $(TARGET_DIR)/capsule-attest/$(CAPSULE_BIN_NAME).ctx.bin
 $(CAPSULE_SLUG)_STALE            := $(NONOS_BAKED_TRUST_DIR)/capsules/$(CAPSULE_BIN_NAME).STALE
 $(CAPSULE_SLUG)_KEY_ED_SEED      := $(_NONOS_CAPSULE_KEY_SEED_PREFIX)_ed25519.seed
 $(CAPSULE_SLUG)_KEY_ED_PUB       := $(_NONOS_CAPSULE_KEY_PUB_PREFIX)_ed25519.pub
@@ -116,8 +117,12 @@ $(CAPSULE_SLUG)_VERSION          := $(_NONOS_CAPSULE_VERSION)
 $(CAPSULE_SLUG)_SERIAL           := $(_NONOS_CAPSULE_SERIAL)
 $(CAPSULE_SLUG)_BUILD_STD        := $(_NONOS_CAPSULE_BUILD_STD)
 $(CAPSULE_SLUG)_BUILD_STD_FEAT   := $(_NONOS_CAPSULE_BUILD_STD_FEAT)
+$(CAPSULE_SLUG)_NEEDS_RT         := $(findstring std,$(_NONOS_CAPSULE_BUILD_STD))
+$(CAPSULE_SLUG)_RUSTFLAGS        := $(if $(findstring std,$(_NONOS_CAPSULE_BUILD_STD)),-Clink-arg=$(NONOS_RT_OBJ),)
 $(CAPSULE_SLUG)_METADATA         := $(_NONOS_CAPSULE_METADATA)
 $(CAPSULE_SLUG)_FEATURE          := $(_NONOS_CAPSULE_FEATURE)
+$(CAPSULE_SLUG)_CARGO_FEATURES   := $(_NONOS_CAPSULE_CARGO_FEATURES)
+$(CAPSULE_SLUG)_PREBUILT_BIN     := $(_NONOS_CAPSULE_PREBUILT_BIN)
 $(CAPSULE_SLUG)_KERNEL_MIRROR    := $(CAPSULE_KERNEL_MIRROR)
 $(CAPSULE_SLUG)_CAPSULE_MK       := $(CAPSULE_DIR)/Capsule.mk
 $(CAPSULE_SLUG)_CARGO_TOML       := $(CAPSULE_DIR)/Cargo.toml
@@ -152,16 +157,27 @@ define NONOS_CAPSULE_RULES
 
 .PHONY: nonos-mk-$(1) nonos-mk-$(1)-sign nonos-mk-$(1)-verify nonos-mk-check-$(1)-keys
 
+ifneq ($$($(1)_PREBUILT_BIN),)
+$$($(1)_BIN): $$($(1)_PREBUILT_BIN) $$($(1)_CAPSULE_MK)
+	@echo "Installing prebuilt $$($(1)_BIN_NAME) capsule..."
+	@mkdir -p "$$(@D)"
+	@cp "$$<" "$$@"
+	@touch "$$@"
+else
 $$($(1)_BIN): $$(USERLAND_LIBC) $$($(1)_CAPSULE_MK) \
                $$($(1)_CARGO_TOML) $$($(1)_CARGO_LOCK) $$($(1)_SOURCES) \
-               $$(NONOS_CAPSULE_SHARED_SRCS) $$($(1)_EXTRA_DEPS)
+               $$(NONOS_CAPSULE_SHARED_SRCS) $$($(1)_EXTRA_DEPS) \
+               $$(if $$($(1)_NEEDS_RT),$$(NONOS_RT_OBJ),)
 	@echo "Building $$($(1)_BIN_NAME) capsule..."
 	@cd $$($(1)_DIR) && \
 		RUSTUP_TOOLCHAIN=$$(TOOLCHAIN) \
+		$$(if $$($(1)_RUSTFLAGS),RUSTFLAGS="$$($(1)_RUSTFLAGS)",) \
 		$$(CARGO) build --release --target ../x86_64-nonos-user.json \
+		$$(if $$($(1)_CARGO_FEATURES),--features $$($(1)_CARGO_FEATURES),) \
 		-Zbuild-std=$$($(1)_BUILD_STD) \
 		$$(if $$($(1)_BUILD_STD_FEAT),-Zbuild-std-features=$$($(1)_BUILD_STD_FEAT),)
 	@touch $$@
+endif
 
 nonos-mk-$(1): $$($(1)_BIN)
 
@@ -223,21 +239,24 @@ $$($(1)_MANIFEST): $$($(1)_BIN) $$($(1)_CERT) $$($(1)_CAPSULE_MK) \
 		--cert $$($(1)_CERT) \
 		--policy $$(NONOS_TRUST_ANCHOR_POLICY_BIN) >/dev/null
 
-$$($(1)_ATTESTATION): $$($(1)_BIN) $$($(1)_MANIFEST) $$(ZK_PROOF_TOOL) \
-                      $$(ZK_VERIFY_TOOL) $$(ZK_PROVING_KEY) $$(ZK_VERIFYING_KEY)
+$$($(1)_ATTESTATION): $$($(1)_BIN) $$($(1)_MANIFEST) $$(ZK_CAPSULE_PROOF_TOOL) \
+                      $$(ZK_CAPSULE_ROOT) $$(ZK_CAPSULE_SECRETS) \
+                      $$(ZK_CAPSULE_COMMITMENTS)
 	@echo "Proving $$($(1)_HANDLE) capsule attestation..."
 	@mkdir -p $$(NONOS_BAKED_TRUST_DIR)/capsules $$(TARGET_DIR)/capsule-attest
-	@$$(ZK_PROOF_TOOL) \
-		--proving-key $$(ZK_PROVING_KEY) \
+	@test -n "$$(ZK_CAPSULE_NONCE_SEED)" || { echo "ZK_CAPSULE_NONCE_SEED is required"; exit 1; }
+	@$$(ZK_CAPSULE_PROOF_TOOL) \
+		--label $$($(1)_BIN_NAME) \
+		--secrets $$(ZK_CAPSULE_SECRETS) \
+		--commitments $$(ZK_CAPSULE_COMMITMENTS) \
+		--root $$(ZK_CAPSULE_ROOT) \
 		--capsule $$($(1)_BIN) \
-		--capability-mask $$($(1)_REQUIRED_CAPS) \
-		--output $$($(1)_ATTEST_PROOF) \
-		--public-inputs-out $$($(1)_ATTEST_PUBINS) \
-		--trailer-out $$@ \
-		--capsule-with-trailer-out $$($(1)_ATTEST_CAPSULE) >/dev/null
-	@$$(ZK_VERIFY_TOOL) \
-		--verifying-key $$(ZK_VERIFYING_KEY) \
-		--capsule $$($(1)_ATTEST_CAPSULE) >/dev/null
+		--capability-mask "$$($(1)_REQUIRED_CAPS)" \
+		--nonce-seed "$$(ZK_CAPSULE_NONCE_SEED):$$($(1)_BIN_NAME)" \
+		--epoch $$(ZK_CAPSULE_EPOCH) \
+		--ctx-out $$($(1)_ATTEST_CTX) \
+		--proof-out $$($(1)_ATTEST_PROOF) \
+		--trailer-out $$@
 
 nonos-mk-$(1)-sign: $$($(1)_CERT) $$($(1)_MANIFEST) $$($(1)_ATTESTATION)
 
@@ -277,6 +296,8 @@ CAPSULE_KEY_PUB_PREFIX :=
 CAPSULE_KEY_SEED_PREFIX :=
 CAPSULE_METADATA :=
 CAPSULE_FEATURE :=
+CAPSULE_CARGO_FEATURES :=
+CAPSULE_PREBUILT_BIN :=
 CAPSULE_KERNEL_MIRROR :=
 _NONOS_CAPSULE_OPTIONAL_CAPS :=
 _NONOS_CAPSULE_CAPS_CEILING :=
@@ -289,3 +310,5 @@ _NONOS_CAPSULE_KEY_PUB_PREFIX :=
 _NONOS_CAPSULE_KEY_SEED_PREFIX :=
 _NONOS_CAPSULE_METADATA :=
 _NONOS_CAPSULE_FEATURE :=
+_NONOS_CAPSULE_CARGO_FEATURES :=
+_NONOS_CAPSULE_PREBUILT_BIN :=
