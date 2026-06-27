@@ -167,7 +167,7 @@ else
 $$($(1)_BIN): $$(USERLAND_LIBC) $$($(1)_CAPSULE_MK) \
                $$($(1)_CARGO_TOML) $$($(1)_CARGO_LOCK) $$($(1)_SOURCES) \
                $$(NONOS_CAPSULE_SHARED_SRCS) $$($(1)_EXTRA_DEPS) \
-               $$(if $$($(1)_NEEDS_RT),$$(NONOS_RT_OBJ),)
+               $$(if $$($(1)_NEEDS_RT),$$(NONOS_RT_OBJ) $$(NONOS_STD_PAL_STAMP),)
 	@echo "Building $$($(1)_BIN_NAME) capsule..."
 	@cd $$($(1)_DIR) && \
 		RUSTUP_TOOLCHAIN=$$(TOOLCHAIN) \
