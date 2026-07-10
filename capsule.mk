@@ -110,6 +110,10 @@ $(CAPSULE_SLUG)_RECOVERY         := $(CAPSULE_RECOVERY)
 $(CAPSULE_SLUG)_NAMESPACE        := $(CAPSULE_NAMESPACE)
 $(CAPSULE_SLUG)_SERVICE_ENDPOINT := $(CAPSULE_SERVICE_ENDPOINT)
 $(CAPSULE_SLUG)_REPLY_ENDPOINT   := $(CAPSULE_REPLY_ENDPOINT)
+# Extra endpoints for on-demand instances (terminal, browser): a space
+# separated list of kind:port:name specs, each declared in the signed
+# manifest so a runtime-spawned instance can register its own window.
+$(CAPSULE_SLUG)_INSTANCE_ENDPOINT_FLAGS := $(foreach ep,$(CAPSULE_INSTANCE_ENDPOINTS),--endpoint $(ep))
 $(CAPSULE_SLUG)_REQUIRED_CAPS    := $(CAPSULE_REQUIRED_CAPS)
 $(CAPSULE_SLUG)_OPTIONAL_CAPS    := $(_NONOS_CAPSULE_OPTIONAL_CAPS)
 $(CAPSULE_SLUG)_CAPS_CEILING     := $(_NONOS_CAPSULE_CAPS_CEILING)
@@ -231,6 +235,7 @@ $$($(1)_MANIFEST): $$($(1)_BIN) $$($(1)_CERT) $$($(1)_CAPSULE_MK) \
 		--optional-caps $$($(1)_OPTIONAL_CAPS) \
 		--endpoint $$($(1)_SERVICE_ENDPOINT) \
 		--endpoint $$($(1)_REPLY_ENDPOINT) \
+		$$($(1)_INSTANCE_ENDPOINT_FLAGS) \
 		--pub-seed ed25519=$$($(1)_KEY_ED_SEED) \
 		--pub-seed mldsa65=$$($(1)_KEY_MLDSA_SEED) \
 		--out $$@
@@ -284,6 +289,7 @@ CAPSULE_RECOVERY :=
 CAPSULE_NAMESPACE :=
 CAPSULE_SERVICE_ENDPOINT :=
 CAPSULE_REPLY_ENDPOINT :=
+CAPSULE_INSTANCE_ENDPOINTS :=
 CAPSULE_REQUIRED_CAPS :=
 CAPSULE_OPTIONAL_CAPS :=
 CAPSULE_CAPS_CEILING :=
