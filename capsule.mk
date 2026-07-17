@@ -244,24 +244,38 @@ $$($(1)_MANIFEST): $$($(1)_BIN) $$($(1)_CERT) $$($(1)_CAPSULE_MK) \
 		--cert $$($(1)_CERT) \
 		--policy $$(NONOS_TRUST_ANCHOR_POLICY_BIN) >/dev/null
 
-$$($(1)_ATTESTATION): $$($(1)_BIN) $$($(1)_MANIFEST) $$(ZK_CAPSULE_PROOF_TOOL) \
-                      $$(ZK_CAPSULE_ROOT) $$(ZK_CAPSULE_SECRETS) \
-                      $$(ZK_CAPSULE_COMMITMENTS)
-	@echo "Proving $$($(1)_HANDLE) capsule attestation..."
-	@mkdir -p $$(NONOS_BAKED_TRUST_DIR)/capsules $$(TARGET_DIR)/capsule-attest
-	@test -n "$$(ZK_CAPSULE_NONCE_SEED)" || { echo "ZK_CAPSULE_NONCE_SEED is required"; exit 1; }
-	@$$(ZK_CAPSULE_PROOF_TOOL) \
-		--label $$($(1)_BIN_NAME) \
-		--secrets $$(ZK_CAPSULE_SECRETS) \
-		--commitments $$(ZK_CAPSULE_COMMITMENTS) \
-		--root $$(ZK_CAPSULE_ROOT) \
-		--capsule $$($(1)_BIN) \
-		--capability-mask "$$($(1)_REQUIRED_CAPS)" \
-		--nonce-seed "$$(ZK_CAPSULE_NONCE_SEED):$$($(1)_BIN_NAME)" \
-		--epoch $$(ZK_CAPSULE_EPOCH) \
-		--ctx-out $$($(1)_ATTEST_CTX) \
-		--proof-out $$($(1)_ATTEST_PROOF) \
-		--trailer-out $$@
+# Capsule attestation trailer. The whole capsule set is enrolled at once by the
+# transparent STARK enrollment ($(ZK_CAPSULE_ROOT) rule in the top Makefile),
+# which writes the policy root and every trailer together so the root commits to
+# the real capsule measurements. Each trailer therefore depends only on that
+# step; building any capsule's artifacts triggers the single enrollment.
+$$($(1)_ATTESTATION): $$(ZK_CAPSULE_ROOT)
+	@test -f $$@ || { echo "trailer $$@ was not produced by STARK enrollment"; exit 1; }
+
+# --- RETIRED: curve-based per-capsule attestation ----------------------------
+# The enrolled-secret proof (capsule-attest-proof) was NOT post-quantum and its
+# trailer is incompatible with the nonos-stark spawn gate. Replaced by the STARK
+# measurement enrollment above; kept here, disabled, for reference.
+#
+# $$($(1)_ATTESTATION): $$($(1)_BIN) $$($(1)_MANIFEST) $$(ZK_CAPSULE_PROOF_TOOL) \
+#                       $$(ZK_CAPSULE_ROOT) $$(ZK_CAPSULE_SECRETS) \
+#                       $$(ZK_CAPSULE_COMMITMENTS)
+# 	@echo "Proving $$($(1)_HANDLE) capsule attestation..."
+# 	@mkdir -p $$(NONOS_BAKED_TRUST_DIR)/capsules $$(TARGET_DIR)/capsule-attest
+# 	@test -n "$$(ZK_CAPSULE_NONCE_SEED)" || { echo "ZK_CAPSULE_NONCE_SEED is required"; exit 1; }
+# 	@$$(ZK_CAPSULE_PROOF_TOOL) \
+# 		--label $$($(1)_BIN_NAME) \
+# 		--secrets $$(ZK_CAPSULE_SECRETS) \
+# 		--commitments $$(ZK_CAPSULE_COMMITMENTS) \
+# 		--root $$(ZK_CAPSULE_ROOT) \
+# 		--capsule $$($(1)_BIN) \
+# 		--capability-mask "$$($(1)_REQUIRED_CAPS)" \
+# 		--nonce-seed "$$(ZK_CAPSULE_NONCE_SEED):$$($(1)_BIN_NAME)" \
+# 		--epoch $$(ZK_CAPSULE_EPOCH) \
+# 		--ctx-out $$($(1)_ATTEST_CTX) \
+# 		--proof-out $$($(1)_ATTEST_PROOF) \
+# 		--trailer-out $$@
+# -----------------------------------------------------------------------------
 
 nonos-mk-$(1)-sign: $$($(1)_CERT) $$($(1)_MANIFEST) $$($(1)_ATTESTATION)
 
